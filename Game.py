@@ -1,4 +1,5 @@
 import sys
+from copy import deepcopy
 
 from Human_Player import Human_Player
 from Random_Player import Random_Player
@@ -10,6 +11,8 @@ X = 4
 
 D_DIR = (-1, -1), (-1, +1), (+1, +1), (+1, -1)
 GUI = ["●", "○", "♥", "♡", " "]
+
+DRAW_AFTER_ROUNDS = 1000
 
 ALPHABET = "ABCDEFGH"
 
@@ -83,6 +86,7 @@ class Game:
         self.turn = BLACK
         self.player_1 = player_1
         self.player_2 = player_2
+        self.round = 0
 
         self.board = [[X, BLACK, X, BLACK, X, BLACK, X, BLACK],
                       [BLACK, X, BLACK, X, BLACK, X, BLACK, X],
@@ -117,6 +121,9 @@ class Game:
                 sys.stdout.write("\x08\b\b\n")
                 count += 1
 
+    def copy_board(self):
+        return deepcopy(self.board.copy())
+
     def move(self, move):
         if isinstance(move, str):
             move = self.get_move_pool()[int(move)]
@@ -137,6 +144,7 @@ class Game:
         if temp_color < 2 and (start[0] == 0 or start[0] == 7):
             self.board[start[0]][start[1]] += 2
 
+        self.round += 1
         self.turn = not self.turn
 
     def get_move_pool(self):
@@ -148,8 +156,8 @@ class Game:
                         move_pool += self.get_move_tree_BLACK(x, y).paths()
 
                     if self.board[x][y] == D_BLACK:
-                        # todo
-                        pass
+                        move_pool += self.get_move_tree_D_BLACK(x,y, self.board).paths()
+
 
         if self.turn == WHITE:
             for x in range(len(self.board)):
@@ -158,8 +166,9 @@ class Game:
                         move_pool += self.get_move_tree_WHITE(x, y).paths()
 
                     if self.board[x][y] == D_WHITE:
-                        # todo
-                        pass
+                        move_pool += self.get_move_tree_D_WHITE(x, y, self.board).paths()
+        if len(move_pool) == 0:
+            return []
 
         maxima = len(max(move_pool, key=len))
 
@@ -242,30 +251,176 @@ class Game:
 
         return tree
 
-    def get_move_pool_D_BLACK(self, x, y, tree, d=0, prior=False):
-        # todo
+    def get_move_tree_D_BLACK(self, x, y, board, tree=None, d=0, prior=False):
+        if tree is None:
+            tree = Tree((x, y))
+        if not (x + 1 > 7 or y + 1 > 7):
+            if isWhite(board[x + 1][y + 1]):
+                if x + 2 < 8 and y + 2 < 8:
+                    if board[x + 2][y + 2] == FREE:
+                        child = Tree((x + 2, y + 2))
+                        tree.add_child(child)
+                        board_copy = self.copy_board()
+                        board_copy[x + 1][y + 1] = FREE
+                        self.get_move_tree_D_BLACK(x + 2, y + 2,board_copy, child, d + 1)
+                        prior = True
+
+        if not (x + 1 > 7 or y - 1 < 0):
+            if isWhite(board[x + 1][y - 1]):
+                if x + 2 < 8 and y - 2 < 8:
+                    if board[x + 2][y - 2] == FREE:
+                        child = Tree((x + 2, y - 2))
+                        tree.add_child(child)
+                        board_copy = self.copy_board()
+                        board_copy[x + 1][y - 1] = FREE
+                        self.get_move_tree_D_BLACK(x + 2, y - 2,board_copy, child, d + 1)
+                        prior = True
+
+        if not (x - 1 < 0 or y + 1 > 7):
+            if isWhite(board[x - 1][y + 1]):
+                if x - 2 > -1 and y + 2 < 8:
+                    if board[x - 2][y + 2] == FREE:
+                        child = Tree((x - 2, y + 2))
+                        tree.add_child(child)
+                        board_copy = self.copy_board()
+                        board_copy[x - 1][y + 1] = FREE
+                        self.get_move_tree_D_BLACK(x - 2, y + 2,board_copy, child, d + 1)
+                        prior = True
+
+        if not (x - 1 < 0 or y - 1 < 0):
+            if isWhite(board[x - 1][y - 1]):
+                if x - 2 > -1 and y - 2 < 8:
+                    if board[x - 2][y - 2] == FREE:
+                        child = Tree((x - 2, y - 2))
+                        tree.add_child(child)
+                        board_copy = self.copy_board()
+                        board_copy[x - 1][y - 1] = FREE
+                        self.get_move_tree_D_BLACK(x - 2, y - 2,board_copy, child, d + 1)
+                        prior = True
+
+        if d == 0 and len(tree.children) == 0:
+            if not (x + 1 > 7 or y + 1 > 7):
+                if self.board[x + 1][y + 1] == FREE:
+                    tree.add_child(Tree((x + 1, y + 1)))
+            if not (x + 1 > 7 or y - 1 < 0):
+                if self.board[x + 1][y - 1] == FREE:
+                    tree.add_child(Tree((x + 1, y - 1)))
+            if not (x - 1 < 0 or y + 1 > 7):
+                if self.board[x - 1][y + 1] == FREE:
+                    tree.add_child(Tree((x - 1, y + 1)))
+            if not (x - 1 < 0 or y - 1 < 0):
+                if self.board[x - 1][y - 1] == FREE:
+                    tree.add_child(Tree((x - 1, y - 1)))
+
+        if prior is True:
+            for child in tree.children:
+                child.add_child(Tree((-1, -1)))
+
+        return tree
         pass
 
-    def get_move_pool_D_WHITE(self, x, y):
-        # todo
-        pass
+    def get_move_tree_D_WHITE(self, x, y, board, tree=None, d=0, prior=False):
+        if tree is None:
+            tree = Tree((x, y))
+        if not (x + 1 > 7 or y + 1 > 7):
+            if isBlack(board[x + 1][y + 1]):
+                if x + 2 < 8 and y + 2 < 8:
+                    if board[x + 2][y + 2] == FREE:
+                        child = Tree((x + 2, y + 2))
+                        tree.add_child(child)
+                        board_copy = self.copy_board()
+                        board_copy[x + 1][y + 1] = FREE
+                        self.get_move_tree_D_WHITE(x + 2, y + 2,board_copy, child, d + 1)
+                        prior = True
+
+        if not (x + 1 > 7 or y - 1 < 0):
+            if isBlack(board[x + 1][y - 1]):
+                if x + 2 < 8 and y - 2 < 8:
+                    if board[x + 2][y - 2] == FREE:
+                        child = Tree((x + 2, y - 2))
+                        tree.add_child(child)
+                        board_copy = self.copy_board()
+                        board_copy[x + 1][y - 1] = FREE
+                        self.get_move_tree_D_WHITE(x + 2, y - 2,board_copy, child, d + 1)
+                        prior = True
+
+        if not (x - 1 < 0 or y + 1 > 7):
+            if isBlack(board[x - 1][y + 1]):
+                if x - 2 > -1 and y + 2 < 8:
+                    if board[x - 2][y + 2] == FREE:
+                        child = Tree((x - 2, y + 2))
+                        tree.add_child(child)
+                        board_copy = self.copy_board()
+                        board_copy[x - 1][y + 1] = FREE
+                        self.get_move_tree_D_WHITE(x - 2, y + 2,board_copy, child, d + 1)
+                        prior = True
+
+        if not (x - 1 < 0 or y - 1 < 0):
+            if isBlack(board[x - 1][y - 1]):
+                if x - 2 > -1 and y - 2 < 8:
+                    if board[x - 2][y - 2] == FREE:
+                        child = Tree((x - 2, y - 2))
+                        tree.add_child(child)
+                        board_copy = self.copy_board()
+                        board_copy[x - 1][y - 1] = FREE
+                        self.get_move_tree_D_WHITE(x - 2, y - 2,board_copy, child, d + 1)
+                        prior = True
+
+        if d == 0 and len(tree.children) == 0:
+            if not (x + 1 > 7 or y + 1 > 7):
+                if self.board[x + 1][y + 1] == FREE:
+                    tree.add_child(Tree((x + 1, y + 1)))
+            if not (x + 1 > 7 or y - 1 < 0):
+                if self.board[x + 1][y - 1] == FREE:
+                    tree.add_child(Tree((x + 1, y - 1)))
+            if not (x - 1 < 0 or y + 1 > 7):
+                if self.board[x - 1][y + 1] == FREE:
+                    tree.add_child(Tree((x - 1, y + 1)))
+            if not (x - 1 < 0 or y - 1 < 0):
+                if self.board[x - 1][y - 1] == FREE:
+                    tree.add_child(Tree((x - 1, y - 1)))
+
+        if prior is True:
+            for child in tree.children:
+                child.add_child(Tree((-1, -1)))
+
+        return tree
 
     def is_over(self):
-        # todo: check if game ist over
+        if len(self.get_move_pool()) == 0:
+            return True
         return False
 
-    def play(self):
+    def play(self, show=False):
         while self.is_over() is False:
-            # todo: this method is incomplete
+            if self.round >= DRAW_AFTER_ROUNDS:
+                print("DRAW")
+
+                return -1
+
+            if show == True:
+                self.show()
 
             if self.turn == BLACK:
                 self.move(self.player_1.move(self))
+
+            if show == True:
+                self.show()
+
+            if self.is_over() is True:
+                print("WINNER IS BlACK")
+                return 0
+
+            if self.round >= DRAW_AFTER_ROUNDS:
+                print("DRAW")
+                return -1
+
             if self.turn == WHITE:
                 self.move(self.player_2.move(self))
 
+        print("WINNER IS WHITE")
+        return 1
 
-        pass
-
-
-g = Game()
-g.play()
+for i in range(1000):
+    g = Game()
+    print(g.play())
