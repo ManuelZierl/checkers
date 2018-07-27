@@ -2,7 +2,10 @@ import sys
 from copy import deepcopy
 
 from Human_Player import Human_Player
+from KI_Player import KI_Player
 from Random_Player import Random_Player
+
+import numpy as np
 
 
 FREE, BLACK, WHITE = -1, 0, 1
@@ -12,10 +15,9 @@ X = 4
 D_DIR = (-1, -1), (-1, +1), (+1, +1), (+1, -1)
 GUI = ["●", "○", "♥", "♡", " "]
 
-DRAW_AFTER_ROUNDS = 1000
+DRAW_AFTER_ROUNDS = 200
 
 ALPHABET = "ABCDEFGH"
-
 
 class Tree:
     def __init__(self, value):
@@ -83,10 +85,19 @@ def longest(x):
 class Game:
     def __init__(self, player_1=Random_Player(12, 1), player_2=Random_Player(12, 1)):
 
-        self.turn = BLACK
+        self.turn = WHITE
         self.player_1 = player_1
         self.player_2 = player_2
+        self.players = [player_1, player_2]
         self.round = 0
+
+        self.history_board = [] # todo
+        self.history_reward_WHITE = [] # todo
+        self.history_reward_BLACK = [] # todo
+
+        # reinforcement statics
+        self.REMEMBER_FACTOR = 0.8
+        self.reward_CAPTURE = 0.1
 
         self.board = [[X, BLACK, X, BLACK, X, BLACK, X, BLACK],
                       [BLACK, X, BLACK, X, BLACK, X, BLACK, X],
@@ -121,19 +132,56 @@ class Game:
                 sys.stdout.write("\x08\b\b\n")
                 count += 1
 
-    def copy_board(self):
-        return deepcopy(self.board.copy())
+    def copy_board(self, board=None):
+        if board == None:
+            board = self.board
+
+        return deepcopy(board)
+
+    def get_board_reduced(self):
+        board_copy = self.copy_board()
+        for r in range(len(board_copy)):
+            board_copy[r] = list(filter(lambda a: a != X, board_copy[r]))
+
+        return board_copy
+
+    def is_turn(self,x):
+        if self.turn is BLACK:
+            if x == BLACK or x == D_BLACK:
+                return True
+            return False
+        if self.turn is WHITE:
+            if x == WHITE or x == D_WHITE:
+                return True
+            return False
+        return False
+
+    def is_D(self, x):
+        if x == D_BLACK or x == D_WHITE:
+            return True
+        return False
+
 
     def move(self, move):
         if isinstance(move, str):
             move = self.get_move_pool()[int(move)]
+
+        capture_normal = 0
+        capture_dame = 0
+        new_dame = 0
 
         start = move.pop(0)
         temp_color = self.board[start[0]][start[1]]
         self.board[start[0]][start[1]] = FREE
         while len(move) != 0:
             for tw in tween(start[0], start[1], move[0][0], move[0][1]):
-                if self.board[tw[0]][tw[1]] == (not self.turn):
+                if not self.is_turn(self.board[tw[0]][tw[1]]):
+
+                    if self.is_D(self.board[tw[0]][tw[1]]):
+                        capture_dame += 1
+                    else:
+                        capture_normal += 1
+
                     self.board[tw[0]][tw[1]] = FREE
                     break
 
@@ -143,9 +191,12 @@ class Game:
 
         if temp_color < 2 and (start[0] == 0 or start[0] == 7):
             self.board[start[0]][start[1]] += 2
+            new_dame += 0
 
         self.round += 1
         self.turn = not self.turn
+
+        return capture_normal, capture_dame, new_dame
 
     def get_move_pool(self):
         move_pool = []
@@ -158,7 +209,6 @@ class Game:
                     if self.board[x][y] == D_BLACK:
                         move_pool += self.get_move_tree_D_BLACK(x,y, self.board).paths()
 
-
         if self.turn == WHITE:
             for x in range(len(self.board)):
                 for y in range(len(self.board[0])):
@@ -167,6 +217,7 @@ class Game:
 
                     if self.board[x][y] == D_WHITE:
                         move_pool += self.get_move_tree_D_WHITE(x, y, self.board).paths()
+
         if len(move_pool) == 0:
             return []
 
@@ -260,7 +311,7 @@ class Game:
                     if board[x + 2][y + 2] == FREE:
                         child = Tree((x + 2, y + 2))
                         tree.add_child(child)
-                        board_copy = self.copy_board()
+                        board_copy = self.copy_board(board)
                         board_copy[x + 1][y + 1] = FREE
                         self.get_move_tree_D_BLACK(x + 2, y + 2,board_copy, child, d + 1)
                         prior = True
@@ -271,7 +322,7 @@ class Game:
                     if board[x + 2][y - 2] == FREE:
                         child = Tree((x + 2, y - 2))
                         tree.add_child(child)
-                        board_copy = self.copy_board()
+                        board_copy = self.copy_board(board)
                         board_copy[x + 1][y - 1] = FREE
                         self.get_move_tree_D_BLACK(x + 2, y - 2,board_copy, child, d + 1)
                         prior = True
@@ -282,7 +333,7 @@ class Game:
                     if board[x - 2][y + 2] == FREE:
                         child = Tree((x - 2, y + 2))
                         tree.add_child(child)
-                        board_copy = self.copy_board()
+                        board_copy = self.copy_board(board)
                         board_copy[x - 1][y + 1] = FREE
                         self.get_move_tree_D_BLACK(x - 2, y + 2,board_copy, child, d + 1)
                         prior = True
@@ -293,9 +344,9 @@ class Game:
                     if board[x - 2][y - 2] == FREE:
                         child = Tree((x - 2, y - 2))
                         tree.add_child(child)
-                        board_copy = self.copy_board()
+                        board_copy = self.copy_board(board)
                         board_copy[x - 1][y - 1] = FREE
-                        self.get_move_tree_D_BLACK(x - 2, y - 2,board_copy, child, d + 1)
+                        self.get_move_tree_D_BLACK(x - 2, y - 2, board_copy, child, d + 1)
                         prior = True
 
         if d == 0 and len(tree.children) == 0:
@@ -317,9 +368,9 @@ class Game:
                 child.add_child(Tree((-1, -1)))
 
         return tree
-        pass
 
     def get_move_tree_D_WHITE(self, x, y, board, tree=None, d=0, prior=False):
+
         if tree is None:
             tree = Tree((x, y))
         if not (x + 1 > 7 or y + 1 > 7):
@@ -328,7 +379,7 @@ class Game:
                     if board[x + 2][y + 2] == FREE:
                         child = Tree((x + 2, y + 2))
                         tree.add_child(child)
-                        board_copy = self.copy_board()
+                        board_copy = self.copy_board(board)
                         board_copy[x + 1][y + 1] = FREE
                         self.get_move_tree_D_WHITE(x + 2, y + 2,board_copy, child, d + 1)
                         prior = True
@@ -339,7 +390,7 @@ class Game:
                     if board[x + 2][y - 2] == FREE:
                         child = Tree((x + 2, y - 2))
                         tree.add_child(child)
-                        board_copy = self.copy_board()
+                        board_copy = self.copy_board(board)
                         board_copy[x + 1][y - 1] = FREE
                         self.get_move_tree_D_WHITE(x + 2, y - 2,board_copy, child, d + 1)
                         prior = True
@@ -350,7 +401,7 @@ class Game:
                     if board[x - 2][y + 2] == FREE:
                         child = Tree((x - 2, y + 2))
                         tree.add_child(child)
-                        board_copy = self.copy_board()
+                        board_copy = self.copy_board(board)
                         board_copy[x - 1][y + 1] = FREE
                         self.get_move_tree_D_WHITE(x - 2, y + 2,board_copy, child, d + 1)
                         prior = True
@@ -361,7 +412,7 @@ class Game:
                     if board[x - 2][y - 2] == FREE:
                         child = Tree((x - 2, y - 2))
                         tree.add_child(child)
-                        board_copy = self.copy_board()
+                        board_copy = self.copy_board(board)
                         board_copy[x - 1][y - 1] = FREE
                         self.get_move_tree_D_WHITE(x - 2, y - 2,board_copy, child, d + 1)
                         prior = True
@@ -391,36 +442,75 @@ class Game:
             return True
         return False
 
-    def play(self, show=False):
+    def play(self, show= False):
+        turn = BLACK
+        self.history_reward_BLACK.append(0)
+        self.history_reward_WHITE.append(0)
         while self.is_over() is False:
-            if self.round >= DRAW_AFTER_ROUNDS:
-                print("DRAW")
 
+            self.history_board.append(self.get_board_reduced())
+            if self.round >= DRAW_AFTER_ROUNDS:
                 return -1
 
             if show == True:
                 self.show()
 
-            if self.turn == BLACK:
-                self.move(self.player_1.move(self))
+            captured = self.move(self.players[turn].move(self))
+#
+            # calc the score of the move
+            score = 0.1*captured[0] + 0.3*captured[1] + 0.3*captured[2]
+            if turn == BLACK:
+                self.history_reward_WHITE.append(-1 * score)
+                self.history_reward_BLACK.append(score)
 
-            if show == True:
-                self.show()
+                # remember
+                count = len(self.history_reward_BLACK)-2
+                while count >= 0 and score != 0:
 
-            if self.is_over() is True:
-                print("WINNER IS BlACK")
-                return 0
+                    score = score*self.REMEMBER_FACTOR
+                    self.history_reward_BLACK[count] = self.history_reward_BLACK[count] + score
+                    self.history_reward_WHITE[count] = self.history_reward_WHITE[count] - score
+                    count -= 1
+            else:
+                self.history_reward_WHITE.append(score)
+                self.history_reward_BLACK.append(-1 * score)
+                # remember
+                count = len(self.history_reward_WHITE) - 2
+                while count >= 0 and score != 0:
+                    score = score * self.REMEMBER_FACTOR
+                    self.history_reward_BLACK[count] = self.history_reward_BLACK[count] - score
+                    self.history_reward_WHITE[count] = self.history_reward_WHITE[count] + score
 
-            if self.round >= DRAW_AFTER_ROUNDS:
-                print("DRAW")
-                return -1
+                    count -= 1
+            turn = not (turn)
 
-            if self.turn == WHITE:
-                self.move(self.player_2.move(self))
+        # end reward
+        score = 1
+        if turn == BLACK:
+            count = len(self.history_reward_BLACK) - 1
+            while count >= 0 and score != 0:
 
-        print("WINNER IS WHITE")
-        return 1
+                self.history_reward_BLACK[count] = self.history_reward_BLACK[count] + score
+                self.history_reward_WHITE[count] = self.history_reward_WHITE[count] - score
+                score = score * self.REMEMBER_FACTOR
+                count -= 1
+        else:
+            count = len(self.history_reward_WHITE) - 1
+            while count >= 0 and score != 0:
 
-for i in range(1000):
-    g = Game()
-    print(g.play())
+                self.history_reward_BLACK[count] = self.history_reward_BLACK[count] - score
+                self.history_reward_WHITE[count] = self.history_reward_WHITE[count] + score
+                score = score * self.REMEMBER_FACTOR
+                count -= 1
+
+        return turn
+
+
+
+
+
+g = Game()
+pl = KI_Player(12,1)
+# only example
+print(g.play())
+print(pl.predict(g.history_board[0], g.history_board[1]))
