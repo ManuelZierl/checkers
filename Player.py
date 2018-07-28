@@ -6,3 +6,6 @@ class Player:
 
     def move(self, game):
         raise Exception("Not implemented Methode move()")
+
+    def train(self,x,y):
+        pass

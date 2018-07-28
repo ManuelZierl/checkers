@@ -83,9 +83,9 @@ def longest(x):
             yield from longest(y)
 
 class Game:
-    def __init__(self, player_1=Random_Player(12, 1), player_2=Random_Player(12, 1)):
+    def __init__(self, player_1=KI_Player(12, 0), player_2=Random_Player(12, 1)):
 
-        self.turn = WHITE
+        self.turn = BLACK
         self.player_1 = player_1
         self.player_2 = player_2
         self.players = [player_1, player_2]
@@ -96,7 +96,7 @@ class Game:
         self.history_reward_BLACK = [] # todo
 
         # reinforcement statics
-        self.REMEMBER_FACTOR = 0.8
+        self.REMEMBER_FACTOR = 0.99
         self.reward_CAPTURE = 0.1
 
         self.board = [[X, BLACK, X, BLACK, X, BLACK, X, BLACK],
@@ -138,8 +138,11 @@ class Game:
 
         return deepcopy(board)
 
-    def get_board_reduced(self):
+    def get_board_reduced(self, board = None):
         board_copy = self.copy_board()
+        if not board is None:
+            board_copy = board
+
         for r in range(len(board_copy)):
             board_copy[r] = list(filter(lambda a: a != X, board_copy[r]))
 
@@ -162,7 +165,10 @@ class Game:
         return False
 
 
-    def move(self, move):
+    def move(self, move, board = None, silent = False):
+        if board is None:
+            board = self.board
+
         if isinstance(move, str):
             move = self.get_move_pool()[int(move)]
 
@@ -171,30 +177,31 @@ class Game:
         new_dame = 0
 
         start = move.pop(0)
-        temp_color = self.board[start[0]][start[1]]
-        self.board[start[0]][start[1]] = FREE
+        temp_color = board[start[0]][start[1]]
+        board[start[0]][start[1]] = FREE
         while len(move) != 0:
             for tw in tween(start[0], start[1], move[0][0], move[0][1]):
-                if not self.is_turn(self.board[tw[0]][tw[1]]):
+                if not self.is_turn(board[tw[0]][tw[1]]):
 
-                    if self.is_D(self.board[tw[0]][tw[1]]):
+                    if self.is_D(board[tw[0]][tw[1]]):
                         capture_dame += 1
                     else:
                         capture_normal += 1
 
-                    self.board[tw[0]][tw[1]] = FREE
+                    board[tw[0]][tw[1]] = FREE
                     break
 
             start = move.pop(0)
 
-        self.board[start[0]][start[1]] = temp_color
+        board[start[0]][start[1]] = temp_color
 
         if temp_color < 2 and (start[0] == 0 or start[0] == 7):
-            self.board[start[0]][start[1]] += 2
+            board[start[0]][start[1]] += 2
             new_dame += 0
 
-        self.round += 1
-        self.turn = not self.turn
+        if silent == False:
+            self.round += 1
+            self.turn = not self.turn
 
         return capture_normal, capture_dame, new_dame
 
@@ -442,7 +449,7 @@ class Game:
             return True
         return False
 
-    def play(self, show= False):
+    def play(self, show= False, train=True):
         turn = BLACK
         self.history_reward_BLACK.append(0)
         self.history_reward_WHITE.append(0)
@@ -460,7 +467,7 @@ class Game:
             # calc the score of the move
             score = 0.1*captured[0] + 0.3*captured[1] + 0.3*captured[2]
             if turn == BLACK:
-                self.history_reward_WHITE.append(-1 * score)
+                #self.history_reward_WHITE.append(-1 * score)
                 self.history_reward_BLACK.append(score)
 
                 # remember
@@ -473,7 +480,7 @@ class Game:
                     count -= 1
             else:
                 self.history_reward_WHITE.append(score)
-                self.history_reward_BLACK.append(-1 * score)
+                #self.history_reward_BLACK.append(-1 * score)
                 # remember
                 count = len(self.history_reward_WHITE) - 2
                 while count >= 0 and score != 0:
@@ -483,6 +490,7 @@ class Game:
 
                     count -= 1
             turn = not (turn)
+
 
         # end reward
         score = 1
@@ -503,14 +511,63 @@ class Game:
                 score = score * self.REMEMBER_FACTOR
                 count -= 1
 
+        if train == True:
+            self.player_1.train(self.history_board, self.history_reward_BLACK)
+            self.player_2.train(self.history_board, self.history_reward_WHITE)
+
         return turn
 
 
+pl_1 = KI_Player(12, 0)
+pl_2 = Random_Player(12, 1)
 
+eval = []
+for i in range(1000):
+    game = Game(player_1=pl_1, player_2=pl_2)
+    eval.append(game.play())
+    print(i, "--->", eval.count(0)/(eval.count(0) + eval.count(1) + 1))
+
+print(eval.count(0))
+print(eval.count(1))
+print(eval.count(-1))
+
+eval = []
+for i in range(1000):
+    game = Game(player_1=pl_1, player_2=pl_2)
+    eval.append(game.play(train=False))
+    print(i, "--->", eval.count(0)/(eval.count(0) + eval.count(1) + 1))
+
+print(eval.count(0))
+print(eval.count(1))
+print(eval.count(-1))
+
+"""
+g = Game()
+g.play()
+ki =KI_Player(12,1)
+ki.train(g.history_board, g.history_reward_WHITE)
+for i in range(100):
+    print(i)
+    g = Game()
+    g.play()
+    ki.train(g.history_board, g.history_reward_BLACK)
+
+g = Game()
+g.play()
+ki.train(g.history_board, g.history_reward_BLACK)
 
 
 g = Game()
-pl = KI_Player(12,1)
-# only example
-print(g.play())
-print(pl.predict(g.history_board[0], g.history_board[1]))
+ki.move(g)
+
+#pl = KI_Player(12,1)
+## only example
+#
+#g.show()
+#
+#
+#
+#ki.train(g.history_board, g.history_reward_BLACK)
+#print(g.get_board_reduced())
+#print(pl.predict(g.history_board[0], g.history_board[1]))
+"""
