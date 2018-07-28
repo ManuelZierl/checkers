@@ -1,6 +1,8 @@
 #own
 .idea/
 test.py
+*.sh
+*.sh.*
 
 
 # Byte-compiled / optimized / DLL files
