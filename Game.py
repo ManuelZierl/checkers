@@ -249,6 +249,7 @@ class Game:
             tree = Tree((x, y))
 
         if not (x + 1 > 7 or y + 1 > 7):
+            print(x, y)
             if isWhite(self.board[x + 1][y + 1]):
                 if x + 2 < 8 and y + 2 < 8:
                     if self.board[x + 2][y + 2] == FREE:
@@ -258,8 +259,9 @@ class Game:
                         prior = True
 
         if not (x + 1 > 7 or y - 1 < 0):
+            print(x, y)
             if isWhite(self.board[x + 1][y - 1]):
-                if x + 2 < 8 and y - 2 < 8:
+                if x + 2 < 8 and y - 2 > -1:
                     if self.board[x + 2][y - 2] == FREE:
                         child = Tree((x + 2, y - 2))
                         tree.add_child(child)
@@ -295,7 +297,7 @@ class Game:
 
         if not (x - 1 < 0 or y - 1 < 0):
             if isBlack(self.board[x - 1][y - 1]):
-                if x - 2 > -1 and y - 2 < 8:
+                if x - 2 > -1 and y - 2 > -1:
                     if self.board[x - 2][y - 2] == FREE:
                         child = Tree((x - 2, y - 2))
                         tree.add_child(child)
@@ -332,7 +334,7 @@ class Game:
 
         if not (x + 1 > 7 or y - 1 < 0):
             if isWhite(board[x + 1][y - 1]):
-                if x + 2 < 8 and y - 2 < 8:
+                if x + 2 < 8 and y - 2 > -1:
                     if board[x + 2][y - 2] == FREE:
                         child = Tree((x + 2, y - 2))
                         tree.add_child(child)
@@ -354,7 +356,7 @@ class Game:
 
         if not (x - 1 < 0 or y - 1 < 0):
             if isWhite(board[x - 1][y - 1]):
-                if x - 2 > -1 and y - 2 < 8:
+                if x - 2 > -1 and y - 2 > -1:
                     if board[x - 2][y - 2] == FREE:
                         child = Tree((x - 2, y - 2))
                         tree.add_child(child)
@@ -400,7 +402,7 @@ class Game:
 
         if not (x + 1 > 7 or y - 1 < 0):
             if isBlack(board[x + 1][y - 1]):
-                if x + 2 < 8 and y - 2 < 8:
+                if x + 2 < 8 and y - 2 > -1:
                     if board[x + 2][y - 2] == FREE:
                         child = Tree((x + 2, y - 2))
                         tree.add_child(child)
@@ -422,7 +424,7 @@ class Game:
 
         if not (x - 1 < 0 or y - 1 < 0):
             if isBlack(board[x - 1][y - 1]):
-                if x - 2 > -1 and y - 2 < 8:
+                if x - 2 > -1 and y - 2 > -1:
                     if board[x - 2][y - 2] == FREE:
                         child = Tree((x - 2, y - 2))
                         tree.add_child(child)
