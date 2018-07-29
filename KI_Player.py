@@ -16,13 +16,13 @@ class KI_Player(Player):
             input_1 = Input(shape=(8, 4, 1), name='input_1')
             input_2 = Input(shape=(8, 4, 1), name='input_2')
 
-            c1 = Conv2D(16, (3, 3), padding="same", input_shape=(8, 4, 1))(input_1)
+            c1 = Conv2D(16, (1, 1), padding="same", input_shape=(8, 4, 1))(input_1)
             p1 = MaxPooling2D(pool_size=(2, 2))(c1)
             f1 = Flatten()(p1)
             d1 = Dense(8, activation='sigmoid', kernel_initializer='random_uniform')(f1)
             dr1 = Dropout(0.2)(d1)
 
-            c2 = Conv2D(16, (3, 3), padding="same", input_shape=(8, 4, 1))(input_2)
+            c2 = Conv2D(16, (1, 1), padding="same", input_shape=(8, 4, 1))(input_2)
             p2 = MaxPooling2D(pool_size=(2, 2))(c2)
             f2 = Flatten()(p2)
             d2 = Dense(8, activation='sigmoid', kernel_initializer='random_uniform')(f2)
@@ -71,8 +71,8 @@ class KI_Player(Player):
         train_X_1 = []
         train_X_2 = []
         for i in range(self.turn, len(history) - 1, 2):
-            train_X_1.append(history[i])
-            train_X_2.append(history[i + 1])
+            train_X_1.append(self.normalize_board(history[i]))
+            train_X_2.append(self.normalize_board(history[i+1]))
 
         del Y[0]
 
@@ -86,9 +86,28 @@ class KI_Player(Player):
 
         self.model.fit([train_X_1, train_X_2], Y, epochs=30, verbose=0)
 
+    def normalize_board(self, board):
+        out = []
+        for i in range(len(board)):
+            temp = []
+            for j in range(len(board[0])):
+                if board[i][j] == self.turn:
+                    temp.append(0.5)
+                if board[i][j] == self.turn + 2:
+                    temp.append(1)
+                if board[i][j] == (not self.turn):
+                    temp.append(-0.5)
+                if board[i][j] == (not self.turn) +2:
+                    temp.append(-1)
+                if board[i][j] == -1:
+                    temp.append(0)
+            out.append(temp)
+
+        return out
+
     def predict(self, board_before, board_after):
-        board_before = np.array(board_before).reshape((8, 4, 1))
-        board_after = np.array(board_after).reshape((8, 4, 1))
+        board_before = np.array(self.normalize_board(board_before)).reshape((8, 4, 1))
+        board_after = np.array(self.normalize_board(board_after)).reshape((8, 4, 1))
 
         pred = self.model.predict([np.array([board_before]), np.array([board_after])])
         return pred[0][0]

@@ -61,5 +61,5 @@ class Gym():
 
 
 gym = Gym()
-gym.add_players("KI", 20)
-gym.last_man_standing(1000).save("winner")
+gym.add_players("KI", 2)
+gym.last_man_standing(500).save("winnerm")

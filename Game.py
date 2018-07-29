@@ -249,7 +249,6 @@ class Game:
             tree = Tree((x, y))
 
         if not (x + 1 > 7 or y + 1 > 7):
-            print(x, y)
             if isWhite(self.board[x + 1][y + 1]):
                 if x + 2 < 8 and y + 2 < 8:
                     if self.board[x + 2][y + 2] == FREE:
@@ -259,7 +258,6 @@ class Game:
                         prior = True
 
         if not (x + 1 > 7 or y - 1 < 0):
-            print(x, y)
             if isWhite(self.board[x + 1][y - 1]):
                 if x + 2 < 8 and y - 2 > -1:
                     if self.board[x + 2][y - 2] == FREE:
@@ -466,6 +464,8 @@ class Game:
 
             self.history_board.append(self.get_board_reduced())
             if self.round >= DRAW_AFTER_ROUNDS:
+                self.player_1.train(self.history_board, self.history_reward_BLACK)
+                self.player_2.train(self.history_board, self.history_reward_WHITE)
                 return -1
 
             if show == True:

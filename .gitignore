@@ -3,6 +3,7 @@
 test.py
 *.sh
 *.sh.*
+models/*
 
 
 # Byte-compiled / optimized / DLL files
